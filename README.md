@@ -2,7 +2,7 @@ Scripts, Python modules and GNU Radio companion examples for measuring the
 reception power of an antenna during rotation, and for doing the necessary
 off-line analysis to produce antenna diagrams.
 
-[example-pattern.png]
+![Example pattern](example-pattern.png)
 
 The code here is described in a blog post, https://www.la1k.no/?p=2579.
 
