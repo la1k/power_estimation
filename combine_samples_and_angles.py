@@ -38,33 +38,49 @@ def load_angles(angle_file):
     angles.timestamp = pd.to_datetime(angles.timestamp)
     return angles
 
-def power_spectrum(timestamps, iq_samples, start_bin = 0, num_bins = 8192, n_fft = 8192):
+def spectrum(timestamps, iq_samples, start_bin=0, num_bins=None, n_fft=8192):
     """
-    Calculate the power spectrum, and return a few specific bins.
-
-    For the antenna diagrams, we plot a specific frequency bin as a function of
-    azimuth angle.
+    Calculate FFT spectrum of a given signal.
 
     \\param timestamps, for changing the rate of the timestamps to the rate of
     the FFT windows
     \\param iq_samples Raw IQ samples as obtained from GNU Radio
     \\param start_bin Start bin for the bins we want to keep
-    \\param num_bins Number of bins we want to keep
+    \\param num_bins Number of bins we want to keep. If None, will return all bins
     \\param n_fft Size of FFT
-    \\return Resampled timestamps, power spectrum
+    \\return Resampled timestamps, FFT spectrum
     """
+
+    if num_bins is None:
+        num_bins = n_fft
 
     num_frames = len(iq_samples)/n_fft
     end_bin = start_bin + num_bins
 
-    spectrum = np.zeros((num_frames, num_bins))
+    ret_spectrum = np.zeros((num_frames, num_bins), dtype=np.complex64)
     for i in np.arange(0, num_frames):
         fft_res = np.fft.fftshift(np.fft.fft(iq_samples[i*n_fft:(i+1)*n_fft]))
-        spectrum[i,:] = 10*np.log10(np.abs(fft_res[start_bin:end_bin])**2)
+        ret_spectrum[i,:] = fft_res[start_bin:end_bin]
 
     timestamps = timestamps[n_fft/2:-1:n_fft]
-    timestamps = timestamps[0:spectrum.shape[0]]
-    return timestamps, spectrum
+    timestamps = timestamps[0:ret_spectrum.shape[0]]
+    return timestamps, ret_spectrum
+
+
+def power_spectrum(timestamps, iq_samples, start_bin = 0, num_bins = None, n_fft = 8192):
+    """
+    Calculate the power spectrum of a given signal.
+
+    For the antenna diagrams, we plot a specific frequency bin as a function of
+    azimuth angle.
+
+    See spectrum() for arguments.
+
+    \\return Resampled timestamps, power spectrum
+    """
+
+    timestamps, ret_spectrum = spectrum(timestamps, iq_samples, start_bin, num_bins, n_fft)
+    return timestamps, 10*np.log10(np.abs(ret_spectrum)**2)
 
 import pmt
 
