@@ -38,7 +38,7 @@ def load_angles(angle_file):
     angles.timestamp = pd.to_datetime(angles.timestamp)
     return angles
 
-def spectrum(timestamps, iq_samples, start_bin=0, num_bins=None, n_fft=8192):
+def spectrum(timestamps, iq_samples, start_bin=0, num_bins=None, n_fft=8192, return_timestamps=True):
     """
     Calculate FFT spectrum of a given signal.
 
@@ -48,7 +48,8 @@ def spectrum(timestamps, iq_samples, start_bin=0, num_bins=None, n_fft=8192):
     \\param start_bin Start bin for the bins we want to keep
     \\param num_bins Number of bins we want to keep. If None, will return all bins
     \\param n_fft Size of FFT
-    \\return Resampled timestamps, FFT spectrum
+    \\param return_timestamps Whether to return resampled timestamps
+    \\return Resampled timestamps (if to be returned), FFT spectrum
     """
 
     if num_bins is None:
@@ -62,12 +63,17 @@ def spectrum(timestamps, iq_samples, start_bin=0, num_bins=None, n_fft=8192):
         fft_res = np.fft.fftshift(np.fft.fft(iq_samples[i*n_fft:(i+1)*n_fft]))
         ret_spectrum[i,:] = fft_res[start_bin:end_bin]
 
-    timestamps = timestamps[n_fft/2:-1:n_fft]
-    timestamps = timestamps[0:ret_spectrum.shape[0]]
-    return timestamps, ret_spectrum
+    if return_timestamps:
+        timestamps = timestamps[n_fft/2:-1:n_fft]
+        timestamps = timestamps[0:ret_spectrum.shape[0]]
+        return timestamps, ret_spectrum
+    else:
+        return ret_spectrum
 
+def spectrum_to_db(spectrum):
+    return 10*np.log10(np.abs(spectrum)**2)
 
-def power_spectrum(timestamps, iq_samples, start_bin = 0, num_bins = None, n_fft = 8192):
+def power_spectrum(timestamps, iq_samples, start_bin = 0, num_bins = None, n_fft = 8192, return_timestamps=True):
     """
     Calculate the power spectrum of a given signal.
 
@@ -79,8 +85,12 @@ def power_spectrum(timestamps, iq_samples, start_bin = 0, num_bins = None, n_fft
     \\return Resampled timestamps, power spectrum
     """
 
-    timestamps, ret_spectrum = spectrum(timestamps, iq_samples, start_bin, num_bins, n_fft)
-    return timestamps, 10*np.log10(np.abs(ret_spectrum)**2)
+    ret_values = spectrum(timestamps, iq_samples, start_bin, num_bins, n_fft, return_timestamps)
+
+    if return_timestamps:
+        return ret_values[0], spectrum_to_db(ret_values[1])
+    else:
+        return spectrum_to_db(ret_values)
 
 import pmt
 
@@ -109,7 +119,7 @@ def load_gnuradio_header(gnuradio_hdr_file):
 
     return info
 
-def load_gnuradio_samples(gnuradio_file):
+def load_gnuradio_samples(gnuradio_file, return_full_timestamps=True):
     """
     Read gnuradio samples and corresponding timestamps from file.
 
@@ -124,8 +134,13 @@ def load_gnuradio_samples(gnuradio_file):
     corresponds to a UNIX timestamp (USRP does this).
 
     \\param gnuradio_file Filename
-    \\return Tuple of timestamps (datetime, samples x 1) and gnuradio data
-    samples matrix (float, samples x vec_length)
+    \\param return_full_timestamps Whether to construct and return full set of timestamps for each sample (True), or just the timestamp for first and last sample (False)
+    \\return Tuple of timestamps and gnuradio data
+    samples matrix (float, samples x vec_length).
+
+    If return_full_timestamps is set to true, the timestamps
+    will be a vector of length samples x 1. Otherwise, timestamps
+    is of length 2 x 1 and will contain the first and last timestamp.
     """
 
     #read file header
@@ -142,11 +157,15 @@ def load_gnuradio_samples(gnuradio_file):
     if (vec_length > 1):
         data = np.reshape(data, (-1, vec_length))
 
-    #construct timestamps, assuming constant sample rate and no dropped samples
     first_timestamp = np.datetime64(pd.to_datetime(header['rx_time'], unit='s'))
     sample_period_ns = 1.0/header['rx_rate']*1.0e09
-    seconds_since_beginning = np.arange(0, np.shape(data)[0])*sample_period_ns * np.timedelta64(1, 'ns')
-    timestamp = first_timestamp + seconds_since_beginning
+
+    if return_full_timestamps:
+        #construct timestamps, assuming constant sample rate and no dropped samples
+        seconds_since_beginning = np.arange(0, np.shape(data)[0])*sample_period_ns * np.timedelta64(1, 'ns')
+        timestamp = first_timestamp + seconds_since_beginning
+    else:
+        timestamp = [first_timestamp, first_timestamp + np.shape(data)[0]*sample_period_ns*np.timedelta64(1, 'ns')]
     return timestamp, data
 
 def interpolate_angles(interpolation_timestamps, angles, direction='azimuth'):
