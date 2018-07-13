@@ -17,3 +17,5 @@ power spectra directly for selected FFT bins.
 Use `combine_samples_and_angles.py` to combine samples/power estimates produced
 using GNU Radio with the above angle measurements.  See docstring of
 `combine_samples_and_angles.py` for more details.
+
+For time-varying, periodic morse signals, see docstring of `cw_extraction.py`.

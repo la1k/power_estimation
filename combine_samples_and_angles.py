@@ -10,7 +10,9 @@ import combine_samples_and_angles as comb
 angles = comb.read_angles('angle_file')
 timestamps, samples = comb.load_gnuradio_samples('gnuradio_file')
 
-timestamps, power_spectrum = comb.power_spectrum(timestamps, samples)
+from frequency_analysis import spectrum
+timestamps, spectrum = spectrum(timestamps, samples)
+power_spectrum = 10*np.log10(np.abs(spectrum)**2)
 
 azimuth = comb.interpolate_azimuth(timestamps, angles)
 
@@ -31,66 +33,19 @@ def load_angles(angle_file):
     Read angles and timestamps from file
     generated using rotctld_angle_printer.py.
 
-    \\param angle_file File containing angles and corresponding timestamps
-    \\return Dataframe containing angles and timestamps
+    Parameters
+    ----------
+    angle_file :
+	File containing angles and corresponding timestamps
+
+    Returns
+    -------
+    angles : pandas.DataFrame
+        Dataframe containing angles and timestamps
     """
     angles = pd.read_table(angle_file)
     angles.timestamp = pd.to_datetime(angles.timestamp)
     return angles
-
-def spectrum(timestamps, iq_samples, start_bin=0, num_bins=None, n_fft=8192, return_timestamps=True):
-    """
-    Calculate FFT spectrum of a given signal.
-
-    \\param timestamps, for changing the rate of the timestamps to the rate of
-    the FFT windows
-    \\param iq_samples Raw IQ samples as obtained from GNU Radio
-    \\param start_bin Start bin for the bins we want to keep
-    \\param num_bins Number of bins we want to keep. If None, will return all bins
-    \\param n_fft Size of FFT
-    \\param return_timestamps Whether to return resampled timestamps
-    \\return Resampled timestamps (if to be returned), FFT spectrum
-    """
-
-    if num_bins is None:
-        num_bins = n_fft
-
-    num_frames = len(iq_samples)/n_fft
-    end_bin = start_bin + num_bins
-
-    ret_spectrum = np.zeros((num_frames, num_bins), dtype=np.complex64)
-    for i in np.arange(0, num_frames):
-        fft_res = np.fft.fftshift(np.fft.fft(iq_samples[i*n_fft:(i+1)*n_fft]))
-        ret_spectrum[i,:] = fft_res[start_bin:end_bin]
-
-    if return_timestamps:
-        timestamps = timestamps[n_fft/2:-1:n_fft]
-        timestamps = timestamps[0:ret_spectrum.shape[0]]
-        return timestamps, ret_spectrum
-    else:
-        return ret_spectrum
-
-def spectrum_to_db(spectrum):
-    return 10*np.log10(np.abs(spectrum)**2)
-
-def power_spectrum(timestamps, iq_samples, start_bin = 0, num_bins = None, n_fft = 8192, return_timestamps=True):
-    """
-    Calculate the power spectrum of a given signal.
-
-    For the antenna diagrams, we plot a specific frequency bin as a function of
-    azimuth angle.
-
-    See spectrum() for arguments.
-
-    \\return Resampled timestamps, power spectrum
-    """
-
-    ret_values = spectrum(timestamps, iq_samples, start_bin, num_bins, n_fft, return_timestamps)
-
-    if return_timestamps:
-        return ret_values[0], spectrum_to_db(ret_values[1])
-    else:
-        return spectrum_to_db(ret_values)
 
 import pmt
 
@@ -103,8 +58,15 @@ def load_gnuradio_header(gnuradio_hdr_file):
     The header file will probably contain multiple header instances,
     one for each issue of a new tag, but we read only the first.
 
-    \\param gnuradio_hdr_file GNU Radio header filename
-    \\return Header info
+    Parameters
+    ----------
+    gnuradio_hdr_file : str
+	GNU Radio header filename
+
+    Returns
+    -------
+    info : dict
+        Header info
     """
     handle = open(gnuradio_hdr_file)
     header_str = handle.read(parse_file_metadata.HEADER_LENGTH)
@@ -133,14 +95,23 @@ def load_gnuradio_samples(gnuradio_file, return_full_timestamps=True):
     It is assumed that the source sends a correct rx_time-tag so that this
     corresponds to a UNIX timestamp (USRP does this).
 
-    \\param gnuradio_file Filename
-    \\param return_full_timestamps Whether to construct and return full set of timestamps for each sample (True), or just the timestamp for first and last sample (False)
-    \\return Tuple of timestamps and gnuradio data
-    samples matrix (float, samples x vec_length).
+    Parameters
+    ----------
+    gnuradio_file :
+	Filename
+    return_full_timestamps : boolean, optional
+        Whether to construct and return full set of timestamps for each sample
+        (True), or just the timestamp for first and last sample (False)
 
-    If return_full_timestamps is set to true, the timestamps
-    will be a vector of length samples x 1. Otherwise, timestamps
-    is of length 2 x 1 and will contain the first and last timestamp.
+    Returns
+    -------
+    timestamps :
+        Timestamps for the samples.  If return_full_timestamps is set to true,
+        the timestamps will be a vector of length samples x 1. Otherwise,
+        timestamps is of length 2 x 1 and will contain the first and last
+        timestamp.
+    data :
+        Samples, matrix of length samples x vec_length.
     """
 
     #read file header
@@ -177,12 +148,20 @@ def interpolate_angles(interpolation_timestamps, angles, direction='azimuth'):
     recalculated as the number of seconds from this. Samples outside the angle
     timerange are counted to belong to the first and last azimuth angle.
 
-    \\param interpolation_timestamps Timestamps on which to interpolate
-    \\angles Angles dataframe as read using load_angles(), containing
-    timestamps and azimuth angles as columns
-    \\direction Whether to yield azimuth ('azimuth') or elevation ('elevation')
-    \\return Azimuth or elevation angles in array of length corresponding to the input
-    timestamps
+    Parameters
+    ----------
+    interpolation_timestamps :
+	Timestamps on which to interpolate
+    angles : pandas.DataFrame
+        Angles dataframe as read using load_angles(), containing timestamps and
+        azimuth angles as columns
+    direction : str, optional
+        Whether to yield azimuth ('azimuth') or elevation ('elevation')
+    Returns
+    -------
+    angles :
+        Interpolated azimuth or elevation angles in array of length
+        corresponding to the input timestamps.
     """
     first_timestamp = angles.timestamp.as_matrix()[0].copy()
     last_timestamp = angles.timestamp.as_matrix()[-1].copy()
