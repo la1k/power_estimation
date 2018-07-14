@@ -19,3 +19,4 @@ using GNU Radio with the above angle measurements.  See docstring of
 `combine_samples_and_angles.py` for more details.
 
 For time-varying, periodic morse signals, see docstring of `cw_extraction.py`.
+Its behavior is described in https://www.la1k.no/2018/06/27/extracting-the-antenna-pattern-from-a-beacon-signal-pt-i-initial-investigations-using-autocorrelation/, https://www.la1k.no/2018/07/04/extracting-the-antenna-pattern-from-a-beacon-signal-pt-ii-measurements-of-la2shf/ and https://www.la1k.no/?p=2960&preview=true.
