@@ -49,6 +49,38 @@ def load_angles(angle_file):
 
 import pmt
 
+def read_gnuradio_header_element(file_handle):
+    """
+    Read a header element/header structure from the current position of
+    a GNU Radio header file. The header file contains multiple header
+    elements, one for each issued stream tag.
+
+    Parameters
+    ----------
+    file_handle:
+        File handle for the header file, as obtained using open().
+    Returns
+    -------
+    info: dict
+        Header structure.
+    header_length: int
+        Length of the header element in bytes.
+    """
+    header_str = file_handle.read(parse_file_metadata.HEADER_LENGTH)
+    if len(header_str) == 0:
+        return None, 0
+
+    header = pmt.deserialize_str(header_str)
+    info = parse_file_metadata.parse_header(header, False)
+
+    #get extra information
+    if info["extra_len"] > 0:
+        extra_str = file_handle.read(info["extra_len"])
+        extra = pmt.deserialize_str(extra_str)
+        extra_info = parse_file_metadata.parse_extra_dict(extra, info, False)
+
+    return info, parse_file_metadata.HEADER_LENGTH + info["extra_len"]
+
 def load_gnuradio_header(gnuradio_hdr_file):
     """
     Load GNU Radio meta file header. Function load_gnuradio_samples()
@@ -69,19 +101,9 @@ def load_gnuradio_header(gnuradio_hdr_file):
         Header info
     """
     handle = open(gnuradio_hdr_file)
-    header_str = handle.read(parse_file_metadata.HEADER_LENGTH)
-    header = pmt.deserialize_str(header_str)
-    info = parse_file_metadata.parse_header(header, False)
+    return read_gnuradio_header_element(handle)[0]
 
-    #get extra information
-    if info["extra_len"] > 0:
-        extra_str = handle.read(info["extra_len"])
-        extra = pmt.deserialize_str(extra_str)
-        extra_info = parse_file_metadata.parse_extra_dict(extra, info, False)
-
-    return info
-
-def load_gnuradio_samples(gnuradio_file, return_full_timestamps=True):
+def load_gnuradio_samples(gnuradio_file, return_full_timestamps=False):
     """
     Read gnuradio samples and corresponding timestamps from file.
 
@@ -101,7 +123,8 @@ def load_gnuradio_samples(gnuradio_file, return_full_timestamps=True):
 	Filename
     return_full_timestamps : boolean, optional
         Whether to construct and return full set of timestamps for each sample
-        (True), or just the timestamp for first and last sample (False)
+        (True), or just the timestamp for first and last sample (False).
+        Constructing timestamps for every sample can be memory-extensive.
 
     Returns
     -------
