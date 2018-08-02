@@ -7,7 +7,7 @@ See extract_signal_level_from_periodic_cw_signal() as an entry point method.
 from frequency_analysis import interpolate_at_frequency
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.signal import medfilt
+from scipy.ndimage import binary_erosion
 
 def extract_signal_level_from_periodic_cw_signal(filename, frequency, n_fft=8192):
     """
@@ -44,9 +44,10 @@ def extract_signal_level_from_periodic_cw_signal(filename, frequency, n_fft=8192
 
     #get signal template
     template = construct_signal_template(sequences, rectification_lags)[0:len(samples)]
+    template = binary_erosion(template > 0)
 
     #apply signal template
-    high_samples = medfilt(samples[template > 0])
+    high_samples = samples[template > 0]
     high_stamps = full_stamps[template > 0]
 
     return high_stamps, high_samples
