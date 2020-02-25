@@ -6,7 +6,7 @@ off-line analysis to produce antenna diagrams.
 
 The code here is described in a blog post, https://www.la1k.no/2018/05/16/using-gnu-radio-and-hamlib-to-calculate-antenna-diagrams/.
 
-Use `measure.py` in measurement subdirectory to samplies IQ data while
+Use `measure.py` in measurement subdirectory to sample IQ data while
 simultaneously logging antenna angles to file. See `README.md` in that folder
 for more details. Let the script run continuously while turning the rotor.
 
