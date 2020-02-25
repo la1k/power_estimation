@@ -6,13 +6,9 @@ off-line analysis to produce antenna diagrams.
 
 The code here is described in a blog post, https://www.la1k.no/2018/05/16/using-gnu-radio-and-hamlib-to-calculate-antenna-diagrams/.
 
-Use `rotctld_angle_printer.py` to print timestamp + angle to file. See
-docstring of `rotctld_angle_printer.py` for more details. Let this run
-continuously while collecting GNU Radio samples and turning the rotor.
-
-Run grc_uhd_to_iq.grc in GNU Radio companion to collect IQ samples for later
-power spectrum estimation, or run grc_uhd_to_power_spectrum.grc to estimate
-power spectra directly for selected FFT bins.
+Use `measure.py` in measurement subdirectory to samplies IQ data while
+simultaneously logging antenna angles to file. See `README.md` in that folder
+for more details. Let the script run continuously while turning the rotor.
 
 Use `combine_samples_and_angles.py` to combine samples/power estimates produced
 using GNU Radio with the above angle measurements.  See docstring of
